@@ -6,6 +6,7 @@ import (
 	. "fmt"
 	"os"
 	"strings"
+	"time"
 )
 
 const red = "\033[31m"
@@ -15,8 +16,8 @@ const black = "\033[0m"
 func main() {
 
 	filename := flag.String("filename", "problems.csv", "enter a filename (must be .csv)")
+	totalTime := flag.Int("timer", 10, "define a time limit (seconds)")
 	flag.Parse()
-	Println(*filename)
 
 	//read file
 	file, err := os.Open(*filename)
@@ -28,23 +29,36 @@ func main() {
 	if err != nil {
 		exit("Error: check the input file content.")
 	}
+
 	problems := parseLines(lines)
 
+	//setup
+	timer := time.NewTimer(time.Duration(*totalTime) * time.Second)
 	var score int
 	var userAnswer string
+	ansChan := make(chan string)
 	for i, problem := range problems {
 		Printf("Problem number %d: %s? ", i+1, problem.q)
-		_, _ = Scanf("%s ", &userAnswer)
-		userAnswer = strings.TrimSpace(userAnswer)
-		if userAnswer == problem.a {
-			score++
-			Println(string(green), "OK!")
-		} else {
-			Println(string(red), "Wrong!")
+		go func() {
+			_, _ = Scanf("%s ", &userAnswer)
+			ansChan <- userAnswer
+		}()
+		select {
+		case <-timer.C:
+			Printf("\nTime's up!\nYour score: %d out of %d\n", score, len(problems))
+			return
+		case <-ansChan:
+			userAnswer = strings.TrimSpace(userAnswer)
+			if userAnswer == problem.a {
+				score++
+				Println(string(green), "OK!")
+			} else {
+				Println(string(red), "Wrong!")
+			}
+			Print(string(black))
 		}
-		Print(string(black))
 	}
-	Printf("\nYour score: %d out of %d\n", score, len(problems))
+	Printf("\nYou completed all the questions!\nYour score: %d out of %d\n", score, len(problems))
 
 }
 
